@@ -1,4 +1,4 @@
-cabal-version:      3.0
+cabal-version: 3.0
 -- The cabal-version field refers to the version of the .cabal specification,
 -- and can be different from the cabal-install (the tool) version and the
 -- Cabal (the library) version you are using. As such, the Cabal (the library)
@@ -11,41 +11,46 @@ cabal-version:      3.0
 --   http://haskell.org/cabal/users-guide/
 --
 -- The name of the package.
-name:               lang-hs
+name: lang-hs
 
 -- The package version.
 -- See the Haskell package versioning policy (PVP) for standards
 -- guiding when and how versions should be incremented.
 -- https://pvp.haskell.org
--- PVP summary:     +-+------- breaking API changes
---                  | | +----- non-breaking API additions
---                  | | | +--- code changes with no API change
-version:            0.1.0.0
+-- PVP summary:
+--       +-+------- breaking API changes
+--       | | +----- non-breaking API additions
+--       | | | +--- code changes with no API change
+version: 0.1.0.0
 
 -- A short (one-line) description of the package.
--- synopsis:
+synopsis:
+    A language with set-theoretic types, algebraic effects, and a minimal,
+    Haskell-inspired syntax
 
 -- A longer description of the package.
 -- description:
 
 -- The license under which the package is released.
-license:            GPL-3.0-only
+license: GPL-3.0-only
 
 -- The file containing the license text.
-license-file:       LICENSE
+license-file: LICENSE
 
 -- The package author(s).
-author:             Ellis Gibbons
+author: Ellis Gibbons
 
 -- An email address to which users can send suggestions, bug reports, and patches.
-maintainer:         egibbons256@gmail.com
+maintainer: egibbons256@gmail.com
 
 -- A copyright notice.
 -- copyright:
-build-type:         Simple
+build-type: Simple
 
 -- Extra doc files to be distributed with the package, such as a CHANGELOG or a README.
-extra-doc-files:    CHANGELOG.md
+extra-doc-files:
+    README.md,
+    CHANGELOG.md
 
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
@@ -55,33 +60,37 @@ common warnings
 
 executable lang-hs
     -- Import common warning flags.
-    import:           warnings
+    import: warnings
 
     -- .hs or .lhs file containing the Main module.
-    main-is:          Main.hs
+    main-is: Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:    Parser,
-    other-modules:    AST,
-                      TypeChecker
+    other-modules:
+        AST,
+        -- Parser,
+        TypeChecker
 
     default-extensions: StrictData
 
     -- LANGUAGE extensions used by modules in this package.
-    other-extensions: OverloadedStrings,
-                      StrictData
+    other-extensions:
+        OverloadedStrings,
+        StrictData
 
     -- Other library packages from which modules are imported.
-    build-depends: base ^>=4.17.2.1,
-                   text,
-                   megaparsec,
-                   containers,
-                   unordered-containers,
-                   transformers,
-                   hashable,
-                   llvm-tf
+    build-depends:
+        base ^>=4.17.2.1,
+        text,
+        megaparsec,
+        containers,
+        unordered-containers,
+        transformers,
+        hashable,
+        llvm-tf
+
     -- Directories containing source files.
-    hs-source-dirs:   src
+    hs-source-dirs: src
 
     -- Base language which the package is written in.
     default-language: GHC2021
