@@ -10,15 +10,15 @@ data Literal
     | CharLit Char
     | StrLit Text
     | SymLit Text
-    | ArrayLit [Literal]
     deriving (Show, Eq)
 
 -- TODO: guard?
 data Expr
     = Lit Literal
-    | Prod [Expr]
+    | Prod Expr Expr
+    | Array [Expr]
     | Apply Ident [Expr]
-    | Fn [Ident] Expr
+    | Fn [(Ident, Ty)] Expr
     | Match Expr [(Pattern, Expr)]
     -- | Guard Expr [(Qualifier, Expr)]
     deriving (Show, Eq)
@@ -52,6 +52,6 @@ data Ty
     | DiffTy Ty Ty          -- ty - ty
     | ProdTy Ty Ty          -- ty * ty
     | FnTy Ty Ty            -- ty -> ty
-    | ApplyTy Ty [Ty]       -- ty a
-    | ForallTy [Ident] Ty   -- \a. ty a
+    | ApplyTy Ident [Ty]    -- ty a
+    | ForallTy [(Ident, Ty)] Ty   -- \a. ty a
     deriving (Show, Eq)
