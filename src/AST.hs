@@ -15,20 +15,33 @@ data Literal
 -- TODO: guard?
 data Expr
     = Lit Literal
+    | Var Ident
     | Prod Expr Expr
     | Array [Expr]
-    | Apply Ident [Expr]
-    | Fn [(Ident, Ty)] Expr
+    | Apply Expr [Expr]
+    | Fn [Pattern] Block
+    | IfThenElse Expr Block Block
     | Match Expr [(Pattern, Expr)]
     -- | Guard Expr [(Qualifier, Expr)]
     deriving (Show, Eq)
 
+data Block = Block [Stmt] Expr
+    deriving (Show, Eq)
+
+data Stmt
+    = DeclTy Ident Ty
+    | DeclVar Ident Block
+    | DoExpr Expr
+    deriving (Show, Eq)
+
 -- data Qualifier = ???
 
+-- TODO: Records
 data Pattern
-    = LitPat Literal
+    = EmptyPat
+    | LitPat Literal
     | VarPat Ident
-    | BindPat Pattern Ident
+    | BindPat Ident Pattern
     | ProdPat Pattern Pattern
     | OrPat Pattern Pattern
     | TyPat Pattern Ty
