@@ -5,6 +5,8 @@
 -- Much of this code is a direct translation of the psuedocode found in the
 -- article https://pnwamk.github.io/sst-tutorial/
 
+-- TODO: Handle singleton types; implement parametric polymorphism, records, and row polymorphism
+
 module TypeChecker
     ( (<:)
     , isSubtype
@@ -259,7 +261,7 @@ domain (DNF _ _ b)
         domain' :: DNF -> BDD 'FnTy -> DNF
         domain' _ EmptyBDD = any
         domain' t AnyBDD = t
-        domain' t (BDDNode (s1, s2) l m r) =
+        domain' t (BDDNode (s1, _) l m r) =
             let
                 tl = domain' (union t s1) l
                 tm = domain' t m

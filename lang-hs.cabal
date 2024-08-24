@@ -86,7 +86,8 @@ executable lang-hs
         parser-combinators,
         containers,
         unordered-containers,
-        transformers,
+        lens,
+        mtl,
         hashable,
         llvm-tf
 

@@ -18,15 +18,14 @@ data Expr
     | Var Ident
     | Prod Expr Expr
     | Array [Expr]
-    | Apply Expr [Expr]
+    | Apply Expr [Expr] -- Change to `Apply Expr Expr`?
     | Fn [Pattern] Block
-    | IfThenElse Expr Block Block
+    | IfElse Expr Block Block
     | Match Expr [(Pattern, Expr)]
     -- | Guard Expr [(Qualifier, Expr)]
     deriving (Show, Eq)
 
-data Block = Block [Stmt] Expr
-    deriving (Show, Eq)
+newtype Block = Block [Stmt] deriving (Show, Eq)
 
 data Stmt
     = DeclTy Ident Ty
@@ -34,9 +33,7 @@ data Stmt
     | DoExpr Expr
     deriving (Show, Eq)
 
--- data Qualifier = ???
-
--- TODO: Records
+-- TODO: Records, if-patterns
 data Pattern
     = EmptyPat
     | LitPat Literal
@@ -46,6 +43,8 @@ data Pattern
     | OrPat Pattern Pattern
     | TyPat Pattern Ty
     deriving (Show, Eq)
+
+-- data Qualifier = ???
 
 -- TODO: Records, row polymorphism, primitive types
 data Ty
