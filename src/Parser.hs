@@ -8,13 +8,13 @@ import AST
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Void
+import Data.List (singleton)
 import Text.Megaparsec hiding (State)
 import Text.Megaparsec.Char hiding (space, hspace)
 import qualified Text.Megaparsec.Char.Lexer as L
 import Control.Monad.Combinators.Expr
 import Control.Monad.State
 import Control.Lens
-import Data.List (singleton)
 
 newtype ParserST = ParserST { _indents :: [Pos] }
 makeLenses ''ParserST
@@ -43,13 +43,14 @@ angles   = between (symbol "<") (symbol ">")
 brackets = between (symbol "[") (symbol "]")
 quotes   = between (char '\'') (symbol "'")
 
-identChar :: Parser Char
-identChar = alphaNumChar <|> oneOf ("-_'<>?" :: String)
-
 -- For testing in REPL
+-- TODO: Fail if entire input is not parsed
 run :: Parser a -> Text -> a
 run p i = either (error . errorBundlePretty) id
     $ evalState (runParserT p "" i) (ParserST [pos1])
+
+identChar :: Parser Char
+identChar = alphaNumChar <|> oneOf ("-_'<>?" :: String)
 
 parseIdent :: Parser Text
 parseIdent = fmap T.pack . lexeme $ (:) <$> letterChar <*> many identChar
@@ -60,6 +61,7 @@ parseIndent = do
     new <- L.indentGuard hspace GT ref
     indents %= (new :)
 
+-- TODO: Don't require newline after last match
 parseBlockOf :: Parser a -> Parser [a]
 parseBlockOf p = do
     x <- parseIndent *> p <* eol
@@ -91,10 +93,12 @@ parsePatternTerm = choice
     [ EmptyPat <$ symbol "_"
     , LitPat <$> parseLiteral
     , parens parsePattern
-    , try $ VarPat <$> parseIdent <* notFollowedBy (char '=')
-    , BindPat <$> parseIdent <* symbol "=" <*> parsePatternTerm ]
+    , try $ BindPat <$> parseIdent <* eq <*> parsePatternTerm
+    , try $ VarPat <$> parseIdent ]
+    where eq = symbol "=" <* notFollowedBy (char '>') -- To avoid parsing conflict with match expr
 
 -- TODO: Line folding? User defined operators? Macros?
+-- These builtin operators are (mostly) temporary
 parseExpr :: Parser Expr
 parseExpr = makeExprParser parseExprTerm
     [ [ Prefix $ fn1 "neg" <$ char '-' ]
@@ -103,7 +107,8 @@ parseExpr = makeExprParser parseExprTerm
       , InfixL $ fn2 "div" <$ symbol "/" ]
     , [ InfixL $ fn2 "add" <$ symbol "+"
       , InfixL $ fn2 "sub" <$ symbol "-" ]
-    , [ InfixR $ fn2 "call" <$ symbol "$" ] ]
+    , [ InfixR $ fn2 "call" <$ symbol "$" ]
+    , [ InfixL $ Prod <$ symbol "," ] ]
     where
         fn1 name expr = Apply (Var name) [expr]
         fn2 name lhs rhs = Apply (Var name) [lhs, rhs]
@@ -111,17 +116,29 @@ parseExpr = makeExprParser parseExprTerm
 parseExprTerm :: Parser Expr
 parseExprTerm = choice
     [ Lit <$> parseLiteral
+    , try parseMatch
     , try $ Apply . Var <$> parseIdent <*> some parseExprTerm
     , Var <$> parseIdent
     , Array <$> brackets (parseExpr `sepBy` symbol ",")
     , parens parseExpr
-    , parseIfElse ]
+    , parseIfElse
+    , parseFn ]
 
 parseIfElse :: Parser Expr
 parseIfElse = IfElse
     <$> (symbol "if" *> parseExprTerm)
     <*> parseBlock
     <*> (symbol "else" *> parseBlock)
+
+parseFn :: Parser Expr
+parseFn = Fn <$> parseArgs <*> parseBlock
+    where parseArgs = between (symbol "\\") (symbol ".") $ some parsePattern
+
+parseMatch :: Parser Expr
+parseMatch = Match <$> expr <*> parseBlockOf clause
+    where
+        expr = symbol "match" *> parseExpr <* eol
+        clause = (,) <$> parsePattern <* symbol "=>" <*> parseBlock
 
 parseStmt :: Parser Stmt
 parseStmt = choice

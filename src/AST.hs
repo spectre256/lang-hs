@@ -21,7 +21,7 @@ data Expr
     | Apply Expr [Expr] -- Change to `Apply Expr Expr`?
     | Fn [Pattern] Block
     | IfElse Expr Block Block
-    | Match Expr [(Pattern, Expr)]
+    | Match Expr [(Pattern, Block)]
     -- | Guard Expr [(Qualifier, Expr)]
     deriving (Show, Eq)
 
