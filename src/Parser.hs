@@ -165,14 +165,14 @@ parseTyTerm :: Parser Ty
 parseTyTerm = choice
     [ AnyTy <$ symbol "any"
     , EmptyTy <$ symbol "void"
-    , IntTy <$ symbol "int"
-    , FloatTy <$ symbol "float"
-    , CharTy <$ symbol "char"
-    , StrTy <$ symbol "str"
-    , SymTy <$ symbol "sym"
+    , BaseTy IntTy <$ symbol "int"
+    , BaseTy FloatTy <$ symbol "float"
+    , BaseTy CharTy <$ symbol "char"
+    , BaseTy StrTy <$ symbol "str"
+    , BaseTy SymTy <$ symbol "sym"
     , parens parseTy
-    , ArrayTy <$> brackets parseTy
-    , SingTy <$> parseLiteral
+    , BaseTy . ArrayTy <$> brackets parseTy
+    , BaseTy . SingTy <$> parseLiteral
     , try $ ApplyTy <$> parseIdent <*> some parseTyTerm
     , VarTy <$> parseIdent
     , parseForallTy ]
