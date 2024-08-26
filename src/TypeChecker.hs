@@ -10,6 +10,7 @@
 module TypeChecker
     ( parse
     , (<::)
+    , (>::)
     , (<:)
     , isSubtype
     , proj
@@ -30,6 +31,9 @@ import qualified Parser
 infix 5 <::
 (<::) :: Text -> Text -> Bool
 (<::) = isSubtype `on` parse . Parser.run Parser.parseTy
+infix 5 >::
+(>::) :: Text -> Text -> Bool
+(>::) = flip (<::)
 
 parse :: AST.Ty -> DNF
 parse AST.AnyTy = any
@@ -68,7 +72,10 @@ data DNF = DNF
     { base :: BaseDNF
     , prod :: BDD 'ProdTy
     , fn :: BDD 'FnTy}
-    deriving (Show, Eq)
+    deriving Eq
+
+instance Show DNF where
+    show (DNF b p f) = "<" ++ show b ++ ", " ++ show p ++ ", " ++ show f ++ ">"
 
 instance Ord DNF where
     compare = compare `on` show
@@ -88,7 +95,11 @@ instance Set DNF where
 data BaseDNF = BaseDNF
     { polarity :: Polarity
     , types :: S.HashSet BaseTy }
-    deriving (Show, Eq)
+    deriving Eq
+
+instance Show BaseDNF where
+    show (BaseDNF p tys) = show p ++ "{" ++ elems ++ "}"
+        where elems = init . tail . show $ S.toList tys
 
 instance Null BaseDNF where -- TODO: Either figure out a safe way to have this instance if necessary or remove it
     null (BaseDNF Pos set) = S.null set
@@ -115,7 +126,11 @@ instance Set BaseDNF where
     diff (BaseDNF Neg b1) (BaseDNF Pos b2) = BaseDNF Neg (S.union b1 b2)
 
 
-data Polarity = Pos | Neg deriving (Show, Eq)
+data Polarity = Pos | Neg deriving Eq
+
+instance Show Polarity where
+    show Pos = "+"
+    show Neg = "-"
 
 inv :: Polarity -> Polarity
 inv Pos = Neg
@@ -148,7 +163,17 @@ data BDD (a :: AtomTy)
         , left :: BDD a
         , middle :: BDD a
         , right :: BDD a }
-    deriving (Show, Eq)
+    deriving Eq
+
+instance Show (BDD 'ProdTy) where
+    show AnyBDD = "1"
+    show EmptyBDD = "0"
+    show (BDDNode (ty1, ty2) l m r) = "<(" ++ show ty1 ++ " x " ++ show ty2 ++ "), " ++ show l ++ ", " ++ show m ++ ", " ++ show r ++ ">"
+
+instance Show (BDD 'FnTy) where
+    show AnyBDD = "1"
+    show EmptyBDD = "0"
+    show (BDDNode (ty1, ty2) l m r) = "<(" ++ show ty1 ++ " -> " ++ show ty2 ++ "), " ++ show l ++ ", " ++ show m ++ ", " ++ show r ++ ">"
 
 mkBDD :: DNF -> DNF -> BDD a
 mkBDD x y = BDDNode (x, y) AnyBDD EmptyBDD EmptyBDD -- Have to write the definitions of any and empty to make Haskell's type checker happy
