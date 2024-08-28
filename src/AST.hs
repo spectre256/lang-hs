@@ -57,7 +57,16 @@ data Base
     | SymTy                 -- sym
     | ArrayTy Ty            -- [ty]
     | SingTy Literal        -- e.g. 'ok or 0
-    deriving (Show, Eq, Generic)
+    deriving (Eq, Generic)
+
+instance Show Base where
+    show IntTy = "int"
+    show FloatTy = "float"
+    show CharTy = "char"
+    show StrTy = "str"
+    show SymTy = "sym"
+    show (ArrayTy ty) = show ty
+    show (SingTy x) = "[" ++ show x ++ "]"
 
 -- TODO: Records, row polymorphism, primitive types
 data Ty

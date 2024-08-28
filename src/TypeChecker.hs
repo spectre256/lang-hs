@@ -1,28 +1,33 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use infix" #-}
 
 -- Much of this code is a direct translation of the psuedocode found in the
 -- article https://pnwamk.github.io/sst-tutorial/
 
 -- TODO: Handle singleton types; implement parametric polymorphism, records, and row polymorphism
 
-module TypeChecker
-    ( parse
-    , (<::)
-    , (>::)
-    , (<:)
-    , isSubtype
-    , proj
-    , domain
-    , apply )
-    where
+-- module TypeChecker
+--     ( parse
+--     , (<::)
+--     , (>::)
+--     , (<:)
+--     , isSubtype
+--     , proj
+--     , domain
+--     , apply )
+--     where
+module TypeChecker where
 
 import qualified AST
 
 import Prelude hiding (any, null)
 import qualified Data.HashSet as S
 import Data.Function (on)
+import GHC.Generics (Generic)
 import Data.Hashable
 
 -- For testing in REPL
@@ -72,13 +77,15 @@ data DNF = DNF
     { base :: BaseDNF
     , prod :: BDD 'ProdTy
     , fn :: BDD 'FnTy}
-    deriving Eq
+    deriving (Eq, Generic)
+
+instance Hashable DNF
 
 instance Show DNF where
     show (DNF b p f) = "<" ++ show b ++ ", " ++ show p ++ ", " ++ show f ++ ">"
 
 instance Ord DNF where
-    compare = compare `on` show
+    compare = compare `on` hash
 
 instance Null DNF where
     null (DNF b p f) = null b && null p && null f
@@ -95,7 +102,9 @@ instance Set DNF where
 data BaseDNF = BaseDNF
     { polarity :: Polarity
     , types :: S.HashSet BaseTy }
-    deriving Eq
+    deriving (Eq, Generic)
+
+instance Hashable BaseDNF
 
 instance Show BaseDNF where
     show (BaseDNF p tys) = show p ++ "{" ++ elems ++ "}"
@@ -103,6 +112,7 @@ instance Show BaseDNF where
 
 instance Null BaseDNF where -- TODO: Either figure out a safe way to have this instance if necessary or remove it
     null (BaseDNF Pos set) = S.null set
+    null (BaseDNF Neg set) = not $ S.null set -- NOTE: This will not work for a full set of base types
 
 instance Set BaseDNF where
     any = BaseDNF Neg S.empty
@@ -110,23 +120,28 @@ instance Set BaseDNF where
 
     comp (BaseDNF pol b) = BaseDNF (inv pol) b
 
-    union (BaseDNF Pos b1) (BaseDNF Pos b2) = BaseDNF Pos (S.union b1 b2)
-    union (BaseDNF Neg b1) (BaseDNF Neg b2) = BaseDNF Neg (S.intersection b1 b2)
-    union (BaseDNF Pos b1) (BaseDNF Neg b2) = BaseDNF Neg (S.difference b2 b1)
-    union (BaseDNF Neg b1) (BaseDNF Pos b2) = BaseDNF Neg (S.difference b1 b2)
+    union (BaseDNF p1 b1) (BaseDNF p2 b2) = uncurry BaseDNF $ case (p1, p2) of
+        (Pos, Pos) -> (Pos, S.union b1 b2)
+        (Neg, Neg) -> (Neg, S.intersection b1 b2)
+        (Pos, Neg) -> (Neg, S.difference b2 b1)
+        (Neg, Pos) -> (Neg, S.difference b1 b2)
 
-    inter (BaseDNF Pos b1) (BaseDNF Pos b2) = BaseDNF Pos (S.intersection b1 b2)
-    inter (BaseDNF Neg b1) (BaseDNF Neg b2) = BaseDNF Neg (S.union b1 b2)
-    inter (BaseDNF Pos b1) (BaseDNF Neg b2) = BaseDNF Pos (S.difference b1 b2)
-    inter (BaseDNF Neg b1) (BaseDNF Pos b2) = BaseDNF Pos (S.difference b2 b1)
+    inter (BaseDNF p1 b1) (BaseDNF p2 b2) = uncurry BaseDNF $ case (p1, p2) of
+        (Pos, Pos) -> (Pos, S.intersection b1 b2)
+        (Neg, Neg) -> (Neg, S.union b1 b2)
+        (Pos, Neg) -> (Pos, S.difference b1 b2)
+        (Neg, Pos) -> (Pos, S.difference b2 b1)
 
-    diff (BaseDNF Pos b1) (BaseDNF Pos b2) = BaseDNF Pos (S.difference b1 b2)
-    diff (BaseDNF Neg b1) (BaseDNF Neg b2) = BaseDNF Pos (S.difference b2 b1)
-    diff (BaseDNF Pos b1) (BaseDNF Neg b2) = BaseDNF Pos (S.intersection b1 b2)
-    diff (BaseDNF Neg b1) (BaseDNF Pos b2) = BaseDNF Neg (S.union b1 b2)
+    diff (BaseDNF p1 b1) (BaseDNF p2 b2) = uncurry BaseDNF $ case (p1, p2) of
+        (Pos, Pos) -> (Pos, S.difference b1 b2)
+        (Neg, Neg) -> (Pos, S.difference b2 b1)
+        (Pos, Neg) -> (Pos, S.intersection b1 b2)
+        (Neg, Pos) -> (Neg, S.union b1 b2)
 
 
-data Polarity = Pos | Neg deriving Eq
+data Polarity = Pos | Neg deriving (Eq, Generic)
+
+instance Hashable Polarity
 
 instance Show Polarity where
     show Pos = "+"
@@ -145,7 +160,7 @@ instance Hashable AST.Literal
 instance Hashable AST.Ty
 
 instance Ord BaseTy where
-    compare = compare `on` show
+    compare = compare `on` hash
 
 
 data AtomTy = ProdTy | FnTy
@@ -163,20 +178,23 @@ data BDD (a :: AtomTy)
         , left :: BDD a
         , middle :: BDD a
         , right :: BDD a }
-    deriving Eq
+    deriving (Eq, Generic)
 
+instance Hashable (BDD a)
+
+-- There's some boilerplate here, but I don't think there's a way to have overlapping instances with overlapping pattern matches
 instance Show (BDD 'ProdTy) where
     show AnyBDD = "1"
     show EmptyBDD = "0"
-    show (BDDNode (ty1, ty2) l m r) = "<(" ++ show ty1 ++ " x " ++ show ty2 ++ "), " ++ show l ++ ", " ++ show m ++ ", " ++ show r ++ ">"
+    show (BDDNode (ty1, ty2) l m r) = "<" ++ show ty1 ++ " x " ++ show ty2 ++ ", " ++ show l ++ ", " ++ show m ++ ", " ++ show r ++ ">"
 
 instance Show (BDD 'FnTy) where
     show AnyBDD = "1"
     show EmptyBDD = "0"
-    show (BDDNode (ty1, ty2) l m r) = "<(" ++ show ty1 ++ " -> " ++ show ty2 ++ "), " ++ show l ++ ", " ++ show m ++ ", " ++ show r ++ ">"
+    show (BDDNode (ty1, ty2) l m r) = "<" ++ show ty1 ++ " -> " ++ show ty2 ++ ">, " ++ show l ++ ", " ++ show m ++ ", " ++ show r ++ ">"
 
 mkBDD :: DNF -> DNF -> BDD a
-mkBDD x y = BDDNode (x, y) AnyBDD EmptyBDD EmptyBDD -- Have to write the definitions of any and empty to make Haskell's type checker happy
+mkBDD x y = BDDNode (x, y) any empty empty
 
 instance Null (BDD 'ProdTy) where
     null b = nullProd b any any []
@@ -211,7 +229,7 @@ instance Null (BDD 'FnTy) where
                 && nullFn r s p (a:n)
 
             nullComb :: DNF -> DNF -> [(DNF, DNF)] -> Bool
-            nullComb _ _ [] = False
+            nullComb t1 t2 [] = null t1 || null t2
             nullComb t1 t2 ((s1, s2):p)
                 = (t1 <: s1 || nullComb (t1 `diff` s1) t2 p)
                 && (t2 <: comp s2 || nullComb t1 (inter t2 s2) p)
@@ -296,7 +314,7 @@ proj i (DNF _ b _)
 -- Calculates the domain of a function type
 domain :: DNF -> Maybe DNF
 domain (DNF _ _ b)
-    | not $ null b = Just $ domain' any b
+    | not $ null b = Just $ domain' empty b
     | otherwise = Nothing
     where
         domain' :: DNF -> BDD 'FnTy -> DNF
@@ -317,9 +335,9 @@ apply tf@(DNF _ _ b) ta
     | otherwise = Nothing
     where
         apply' :: DNF -> DNF -> BDD 'FnTy -> DNF
-        apply' _ _ EmptyBDD = any
+        apply' _ _ EmptyBDD = empty
         apply' ta' t _
-            | null ta' || null t = any
+            | null ta' || null t = empty
         apply' _ t AnyBDD = t
         apply' ta' t (BDDNode (s1, s2) l m r) =
             let
@@ -328,3 +346,4 @@ apply tf@(DNF _ _ b) ta
                 tm = apply' ta' t m
                 tr = apply' ta' t r
             in tl1 `union` tl2 `union` tm `union` tr
+
