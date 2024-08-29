@@ -12,8 +12,6 @@
 
 -- module TypeChecker
 --     ( parse
---     , (<::)
---     , (>::)
 --     , (<:)
 --     , isSubtype
 --     , proj
@@ -186,12 +184,12 @@ instance Hashable (BDD a)
 instance Show (BDD 'ProdTy) where
     show AnyBDD = "1"
     show EmptyBDD = "0"
-    show (BDDNode (ty1, ty2) l m r) = "<" ++ show ty1 ++ " x " ++ show ty2 ++ ", " ++ show l ++ ", " ++ show m ++ ", " ++ show r ++ ">"
+    show (BDDNode (ty1, ty2) l m r) = concat ["<", show ty1, " x ", show ty2, ", ", show l, ", ", show m, ", ", show r, ">"]
 
 instance Show (BDD 'FnTy) where
     show AnyBDD = "1"
     show EmptyBDD = "0"
-    show (BDDNode (ty1, ty2) l m r) = "<" ++ show ty1 ++ " -> " ++ show ty2 ++ ">, " ++ show l ++ ", " ++ show m ++ ", " ++ show r ++ ">"
+    show (BDDNode (ty1, ty2) l m r) = concat ["<", show ty1, " -> ", show ty2, ", ", show l, ", ", show m, ", ", show r, ">"]
 
 mkBDD :: DNF -> DNF -> BDD a
 mkBDD x y = BDDNode (x, y) any empty empty
@@ -290,9 +288,9 @@ proj i (DNF _ b _)
     | otherwise = Nothing
     where
         proj' :: ProdLoc -> BDD 'ProdTy -> DNF -> DNF -> [(DNF, DNF)] -> DNF
-        proj' _ EmptyBDD _ _ _ = any
+        proj' _ EmptyBDD _ _ _ = empty
         proj' _ _ s1 s2 _
-            | null s1 || null s2 = any
+            | null s1 || null s2 = empty
         proj' i' AnyBDD s1 s2 n = projComb i' s1 s2 n
         proj' i' (BDDNode a@(t1, t2) l m r) s1 s2 n =
             let
